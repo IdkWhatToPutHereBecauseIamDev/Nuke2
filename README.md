@@ -38,7 +38,7 @@ Perfect for pranking a friend who left their laptop unlocked.
 
 ## 🚀 How to Use
 
-1. Put the script in an HTML file or open the website https://idkwhattoputherebecauseiamdev.github.io/Nuke/
+1. Put the script in an HTML file or open the website https://idkwhattoputherebecauseiamdev.github.io/Nuke2/
 2. Open it in a browser  
 3. Press the **NUKE** button  
 4. Watch the chaos unfold  
