@@ -1,0 +1,133 @@
+<button id="nuke">NUKE</button>
+
+<script>
+/*
+  This page will open many small windows that display video.mov from the repo.
+  One of the windows will also play audio.wav (only one at a time). If that
+  window is closed, the next spawned window will play the audio.
+*/
+
+let nuking = false;
+let audioAssigned = false; // tracks whether some window is currently playing audio
+
+// compute absolute paths for repo files (video.mov and audio.wav)
+const BASE = location.origin + location.pathname.replace(/\/[^\/]*$/, '/');
+const VIDEO_SRC = BASE + 'video.mov';
+const AUDIO_SRC = BASE + 'audio.wav';
+
+document.getElementById("nuke").onclick = () => {
+    if (!nuking) {
+        nuking = true;
+        loopSpawn();   // start infinite spawning
+        document.getElementById("nuke").disabled = true;
+    }
+};
+
+// LOOP: keeps creating windows forever
+function loopSpawn() {
+    procreate();
+    setTimeout(loopSpawn, 300); // adjust spawn speed
+}
+
+// CREATE + RESPAWN + BOUNCE
+function procreate() {
+    const w = 400;
+    const h = 300;
+
+    // open a blank same-origin window so we can write HTML into it
+    const win = window.open(
+        '',
+        '_blank',
+        `width=${w},height=${h},left=100,top=100`
+    );
+
+    if (!win) return;
+
+    // decide whether this particular window should play the audio
+    const playAudioHere = !audioAssigned;
+
+    // build an HTML page for the child window that loads the video (and maybe audio)
+    const html = `
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Nuke - player</title>
+  <style>html,body{height:100%;margin:0;background:black}video{width:100%;height:100%;object-fit:contain;background:black}</style>
+</head>
+<body>
+  <video src="${VIDEO_SRC}" autoplay loop controls></video>
+  ${playAudioHere ? `<audio id="nuke-a" src="${AUDIO_SRC}" loop></audio>` : ''}
+  <script>
+    // try to start audio; browsers may block autoplay, we catch and ignore
+    const a = document.getElementById('nuke-a');
+    if (a) {
+      (async () => {
+        try {
+          await a.play();
+        } catch (e) {
+          console.warn('Audio autoplay blocked or failed:', e);
+        }
+      })();
+    }
+  </script>
+</body>
+</html>`;
+
+    // write HTML into the new window
+    try {
+        win.document.open();
+        win.document.write(html);
+        win.document.close();
+    } catch (e) {
+        // in case writing fails for some reason, close the window and bail
+        try { win.close(); } catch (_) {}
+        return;
+    }
+
+    // if this window was assigned audio, mark it so we can clear the flag when it closes
+    if (playAudioHere) audioAssigned = true;
+    const hadAudio = playAudioHere;
+
+    // random movement
+    let dx = (Math.random() * 8) + 4;
+    let dy = (Math.random() * 8) + 4;
+
+    playBall(win, w, h, dx, dy);
+
+    // RESPAWN IF CLOSED (and clear audioAssigned for this window if it had audio)
+    const watcher = setInterval(() => {
+        if (win.closed) {
+            clearInterval(watcher);
+            if (hadAudio) audioAssigned = false; // allow next spawn to take audio
+            procreate(); // instantly recreate the window
+        }
+    }, 200);
+}
+
+// BOUNCING PHYSICS
+function playBall(win, w, h, dx, dy) {
+    const screenW = window.screen.availWidth;
+    const screenH = window.screen.availHeight;
+
+    function step() {
+        if (win.closed) return;
+
+        let x = (typeof win.screenX === 'number' ? win.screenX : win.screenLeft) + dx;
+        let y = (typeof win.screenY === 'number' ? win.screenY : win.screenTop) + dy;
+
+        if (x <= 0 || x + w >= screenW) dx = -dx;
+        if (y <= 0 || y + h >= screenH) dy = -dy;
+
+        try {
+            win.moveTo(x, y);
+        } catch (e) {
+            // some browsers may restrict moveTo; ignore errors
+        }
+
+        requestAnimationFrame(step);
+    }
+
+    step();
+}
+</script>
